@@ -19,6 +19,8 @@ class MODio {
 	var $flagOpen;
 	var $flagFind;
 	var $flagInline;
+
+	var $incrementing_string;
 	
 	var $errno;
 	
@@ -34,6 +36,8 @@ class MODio {
 		$this->flagOpen = false;
 		$this->flagFind = false;
 		$this->flagInline = false;
+
+		$this->incrementing_string = "";
 		
 		$this-> errno = 0;
 	}
@@ -182,12 +186,30 @@ class MODio {
 			$this->errno = -3;
 			return false;
 		}
+
+		//need this for INCREMENT instruction
+		if ( preg_match('/\{\%:\d{1}\}/', $str) ) {
+			$str = preg_replace('/\{\%:\d{1}\}$/', '', $str, 1);
+			$regex_used = true;
+			$sub = substr( $this->data, $this->posStart, $this->posEnd - $this->posStart);
+			$pos = strpos( $sub, $str, $this->posInEnd-$this->posStart );
+			if( $pos === false ) {
+				$this->errno = -2;
+				return false;
+			}
+			$this->posInStart = $pos + $this->posStart;
+			$this->posInEnd = $this->posInStart + strlen( $str );
+			vd::dump(substr($this->data, $this->posInStart,$this->posInEnd-$this->posInStart),"Inline found");
+			//reading digit to increment
+			$this->incrementing_string = substr($this->data, $this->posInEnd, 1);
+			$this->flagInline = true;
+		
+		return $this->posInStart;
+		}
 		
 		$sub = substr( $this->data, $this->posStart, $this->posEnd - $this->posStart);
-		//vd::dump($sub, "Inline substr");
 		vd::dump($str, "Inline searching for");
 		$pos = strpos( $sub, $str, $this->posInEnd-$this->posStart );
-		//vd::dump($this->posInEnd-$this->posStart,"Offset");
 		if( $pos === false ) {
 			$this->errno = -2;
 			return false;
@@ -199,6 +221,33 @@ class MODio {
 		$this->flagInline = true;
 		
 		return $this->posInStart;
+	}
+
+	// func to apply INCREMENT instruction
+	function increment( $str ) {
+		if ( !$this->flagInline ) {
+			$this->errno = -3;
+			return false;	
+		}
+
+		if ( $this->incrementing_string === '' ) {
+			$this->errno = -3;
+			return false;
+		}
+
+		vd::dump($this->incrementing_string, "Incrementing string");
+
+		preg_match('/[+-]\d+/', $str, $m);
+
+		$num = (int)$m[0];
+
+		$this->incrementing_string = (string)((int)$this->incrementing_string + $num);
+
+		vd::dump($this->incrementing_string, "Incremented string");
+
+		$this->data = substr_replace( $this->data, $this->incrementing_string, $this->posInEnd, 1 );
+
+		return true;
 	}
 	
 	function inlineReplace( $str ) {

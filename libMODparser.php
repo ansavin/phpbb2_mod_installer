@@ -89,7 +89,6 @@ class MODparser {
 			    (strstr($this->script[$i],"--[")) &&
 			    (strstr($this->script[$i],"]--")) ) {
 				
-// 				vd::dump( trim($this->script[$i]));
 				$arg = array();
 				
 				$j = $i + 1;
@@ -110,10 +109,7 @@ class MODparser {
 				
 				$arg = implode( "", $arg );
 				$command = $this->extractCommand( $this->script[$i] );
-				
-/*				vd::dump( $command );
-				vd::dump( $arg );*/
-				
+								
 				if( $command == "SQL" )
 				{
 					$this->sql = array_merge($this->sql, split_sql_file(trim($arg),';'));
@@ -191,6 +187,9 @@ class MODparser {
 		}
 		else if( strstr( $str, "SQL" ) ) {
 			$command = "SQL";
+		}
+		else if( strstr( $str, "INCREMENT" ) ) {
+			$command = "INCREMENT";
 		}
 		else {
 			$command = "UNKNOWN";
@@ -345,11 +344,17 @@ class MODparser {
 						}
 						
 						$this->mkdir( dirname( $paths[1] ), $path_to );
-						copy( $this->basedir."/".trim($paths[0]), $path_to."/".trim($paths[1]) );
+						$res = copy( $this->basedir."/".trim($paths[0]), $path_to."/".trim($paths[1]) );
 						$this->files[] = trim($paths[1]);
 					}
 					break;
 				case 'SQL':
+					break;
+				case 'INCREMENT':
+					if( !$this->io->increment( trim($this->commands[$i]['arg']) ) ){
+						$this->errno = $this->io->errno;
+						return false;
+					}
 					break;
 			}
 		}
